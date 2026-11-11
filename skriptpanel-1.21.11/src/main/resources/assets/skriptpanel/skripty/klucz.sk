@@ -1,0 +1,14 @@
+# klucz.sk - wyglad klucza do skrzynek + komenda /klucz
+# Nazwe i opis klucza zmieniasz TYLKO tutaj (i w skrzynki.sk w warunku z nazwa klucza)
+
+function klucz(n: integer = 1) :: itemtype:
+    set {_k} to {_n} of tripwire hook named "&6&l✦ KLUCZ ✦" with lore "&7Skrzynka z nagrodami||&eKliknij nim w skrzynkę na spawnie"
+    enchant {_k} with unbreaking 1
+    return {_k}
+
+command /klucz <player> [<integer=1>]:
+    permission: op
+    trigger:
+        give klucz(arg-2) to arg-1
+        send "&aDałeś %arg-2% kluczy graczowi %arg-1%." to player
+        send "&6Dostałeś %arg-2% klucz(y) do skrzynki!" to arg-1

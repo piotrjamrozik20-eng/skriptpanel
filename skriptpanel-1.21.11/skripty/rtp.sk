@@ -1,0 +1,82 @@
+# rtp.sk - losowy teleport pod komenda /rtp i pod przycisk
+# Przycisk: patrz na niego i wpisz /setrtp (/delrtp usuwa)
+# Zintegrowany z antylogut.sk (zmienna {walka::...})
+
+options:
+    swiat: world
+    promien: 3000
+    cooldown: 60
+
+function szukajMiejsca(w: world) :: location:
+    loop 25 times:
+        set {_x} to random integer between -{@promien} and {@promien}
+        set {_z} to random integer between -{@promien} and {@promien}
+        set {_b} to highest block at location({_x}, 100, {_z}, {_w})
+        set {_typ} to "%type of {_b}%"
+        if {_typ} contains "water" or "lava" or "cactus" or "magma" or "fire" or "air":
+            continue
+        return location({_x} + 0.5, (y-coordinate of {_b}) + 1, {_z} + 0.5, {_w})
+    return none
+
+function rtp(p: player):
+    if {walka::%{_p}'s uuid%} is set:
+        send "&cNie możesz użyć RTP podczas walki!" to {_p}
+        stop
+    if {rtp::lock::%{_p}'s uuid%} is set:
+        stop
+    set {rtp::lock::%{_p}'s uuid%} to true
+
+    if {rtp::cd::%{_p}'s uuid%} is set:
+        set {_ile} to {@cooldown} - (difference between {rtp::cd::%{_p}'s uuid%} and now in seconds)
+        if {_ile} > 0:
+            if {_p} doesn't have permission "rtp.bypass":
+                send "&cMusisz poczekać jeszcze %{_ile}% s przed kolejnym RTP." to {_p}
+                wait 10 ticks
+                delete {rtp::lock::%{_p}'s uuid%}
+                stop
+
+    set {_w} to world "{@swiat}"
+    set {_loc} to szukajMiejsca({_w})
+    if {_loc} is not set:
+        send "&cNie znaleziono bezpiecznego miejsca, spróbuj ponownie." to {_p}
+        wait 10 ticks
+        delete {rtp::lock::%{_p}'s uuid%}
+        stop
+
+    send "&eTeleportacja za 3 sekundy..." to {_p}
+    wait 3 seconds
+    if {walka::%{_p}'s uuid%} is set:
+        send "&cTeleportacja przerwana, jesteś w walce!" to {_p}
+        delete {rtp::lock::%{_p}'s uuid%}
+        stop
+    teleport {_p} to {_loc}
+    set {rtp::cd::%{_p}'s uuid%} to now
+    send "&aTeleportowano na losowe miejsce! &7(X: %rounded x-coordinate of {_loc}%, Z: %rounded z-coordinate of {_loc}%)" to {_p}
+    play sound "entity.enderman.teleport" to {_p}
+    delete {rtp::lock::%{_p}'s uuid%}
+
+command /rtp:
+    trigger:
+        rtp(player)
+
+command /setrtp:
+    permission: op
+    trigger:
+        set {_b} to target block of player
+        if "%type of {_b}%" does not contain "button":
+            send "&cPatrz na przycisk (drewniany lub kamienny)." to player
+            stop
+        add location of {_b} to {rtp::przyciski::*}
+        send "&aPrzycisk RTP ustawiony!" to player
+
+command /delrtp:
+    permission: op
+    trigger:
+        set {_b} to target block of player
+        remove location of {_b} from {rtp::przyciski::*}
+        send "&aPrzycisk RTP usunięty." to player
+
+on right click on block:
+    if "%type of event-block%" contains "button":
+        if {rtp::przyciski::*} contains location of event-block:
+            rtp(player)

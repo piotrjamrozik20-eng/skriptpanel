@@ -1,0 +1,63 @@
+# komendy.sk - spawn, ochrona spawna (bez niszczenia i bez PvP), ranga przez LuckPerms
+# Wczytaj jako pierwszy: inne skrypty korzystaja z {spawn::loc} i {spawn::radius}
+# Wymaga: Skript, LuckPerms (do /ranga)
+
+on load:
+    set {spawn::radius} to 30
+
+command /setspawn:
+    permission: op
+    trigger:
+        set {spawn::loc} to location of player
+        send "&aSpawn ustawiony!" to player
+
+command /spawn:
+    trigger:
+        if {spawn::loc} is not set:
+            send "&cSpawn nie jest ustawiony." to player
+            stop
+        teleport player to {spawn::loc}
+        send "&aTeleportowano na spawn." to player
+
+command /ranga <offlineplayer> <text>:
+    permission: op
+    trigger:
+        execute console command "lp user %arg-1% parent set %arg-2%"
+        send "&aNadano rangę %arg-2% graczowi %arg-1%." to player
+
+on join:
+    if {spawn::loc} is set:
+        teleport player to {spawn::loc}
+
+# --- OCHRONA SPAWNA ---
+on break:
+    if {spawn::loc} is set:
+        if world of event-location is world of {spawn::loc}:
+            if distance between event-location and {spawn::loc} < {spawn::radius}:
+                if player doesn't have permission "op":
+                    cancel event
+                    send "&cNie możesz niszczyć na spawnie!" to player
+
+on place:
+    if {spawn::loc} is set:
+        if world of event-location is world of {spawn::loc}:
+            if distance between event-location and {spawn::loc} < {spawn::radius}:
+                if player doesn't have permission "op":
+                    cancel event
+                    send "&cNie możesz budować na spawnie!" to player
+
+# --- BRAK PVP NA SPAWNIE ---
+on damage of player:
+    attacker is a player
+    {spawn::loc} is set
+    world of victim is world of {spawn::loc}
+    distance between victim and {spawn::loc} < {spawn::radius}
+    cancel event
+    send "&cPvP jest wyłączone na spawnie!" to attacker
+
+on damage of player:
+    projectile is set
+    {spawn::loc} is set
+    world of victim is world of {spawn::loc}
+    distance between victim and {spawn::loc} < {spawn::radius}
+    cancel event

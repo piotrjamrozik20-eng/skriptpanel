@@ -1,0 +1,58 @@
+# antylogut.sk - 30 s znacznika walki, wylogowanie w walce = smierc, blokada komend i pereł
+# Gracze z uprawnieniem antylogut.bypass sa pomijani
+
+options:
+    czas: 30
+
+function oznaczWalke(p: player):
+    if {_p} has permission "antylogut.bypass":
+        stop
+    if {walka::%{_p}'s uuid%} is not set:
+        send "&c&l[WALKA] &cJesteś w walce! Nie wylogowuj się przez {@czas} sekund." to {_p}
+    set {walka::%{_p}'s uuid%} to {@czas}
+
+on damage of player:
+    attacker is a player
+    victim is not attacker
+    # na spawnie PvP jest wylaczone, wiec nie znakujemy
+    if {spawn::loc} is set:
+        if world of victim is world of {spawn::loc}:
+            if distance between victim and {spawn::loc} < {spawn::radius}:
+                stop
+    oznaczWalke(attacker)
+    oznaczWalke(victim)
+
+every second:
+    loop all players:
+        set {_u} to loop-player's uuid
+        if {walka::%{_u}%} is set:
+            remove 1 from {walka::%{_u}%}
+            if {walka::%{_u}%} <= 0:
+                delete {walka::%{_u}%}
+                send "&a&l[WALKA] &aMożesz się już bezpiecznie wylogować." to loop-player
+                send action bar "&aKoniec walki" to loop-player
+            else:
+                send action bar "&cWalka: &f%{walka::%{_u}%}%s" to loop-player
+
+on quit:
+    if {walka::%player's uuid%} is set:
+        delete {walka::%player's uuid%}
+        broadcast "&c&l[WALKA] &f%player% &cwylogował się podczas walki i zginął!"
+        kill player
+
+on death of player:
+    delete {walka::%victim's uuid%}
+
+on command:
+    if {walka::%player's uuid%} is set:
+        if player doesn't have permission "antylogut.bypass":
+            set {_k} to command
+            if {_k} is "spawn" or "rtp" or "tpa" or "tpaccept" or "home" or "warp" or "back" or "setspawn" or "afk" or "essentials:spawn" or "essentials:tpa" or "essentials:home" or "essentials:warp" or "essentials:back":
+                cancel event
+                send "&cNie możesz użyć tej komendy podczas walki! Zostało &f%{walka::%player's uuid%}%s&c." to player
+
+on teleport:
+    if {walka::%player's uuid%} is set:
+        if teleport cause is ender pearl:
+            cancel event
+            send "&cNie możesz używać pereł podczas walki!" to player

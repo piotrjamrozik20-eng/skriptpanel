@@ -1,0 +1,126 @@
+# eventy.sk - 7 eventow wlaczanych komenda /event start <nazwa>
+# Nazwy: swiateczny, mikolajkowy, wakacyjny, dzien dziecka, halloween, wielkanocny, szkolny
+# Zaklada, ze swiat nazywa sie "world" (zmien w sekcji z czasem i pogoda)
+
+function eventNagroda(p: player):
+    set {_e} to {event::aktywny}
+    if {_e} is "swiateczny":
+        give {_p} 1 cake named "&c&lŚwiąteczny tort"
+    else if {_e} is "mikolajkowy":
+        give {_p} 3 gold ingot named "&6Mikołajkowy prezent"
+    else if {_e} is "wakacyjny":
+        give {_p} 8 melon slice named "&aWakacyjny arbuz"
+    else if {_e} is "dzien dziecka":
+        give {_p} 5 cookie named "&dCukierek"
+    else if {_e} is "halloween":
+        give {_p} 4 pumpkin pie named "&6Halloweenowe ciasto"
+    else if {_e} is "wielkanocny":
+        give {_p} 2 egg named "&eJajko wielkanocne"
+    else if {_e} is "szkolny":
+        give {_p} 1 book named "&9Zeszyt"
+    send "&aOtrzymałeś nagrodę eventową!" to {_p}
+
+command /event <text> [<text>]:
+    permission: op
+    trigger:
+        if arg-1 is "start":
+            set {event::aktywny} to arg-2
+            broadcast "&6&l[EVENT] &eRozpoczął się event: &f%arg-2%&e!"
+        else if arg-1 is "stop":
+            delete {event::aktywny}
+            delete {quiz::odp}
+            broadcast "&6&l[EVENT] &cEvent zakończony."
+        else if arg-1 is "status":
+            send "&7Aktywny event: %{event::aktywny}%" to player
+        else:
+            send "&cUżycie: /event start <nazwa> | stop | status" to player
+            send "&7Nazwy: swiateczny, mikolajkowy, wakacyjny, dzien dziecka, halloween, wielkanocny, szkolny" to player
+
+# nagroda dla wszystkich co 10 minut
+every 10 minutes:
+    if {event::aktywny} is set:
+        loop all players:
+            eventNagroda(loop-player)
+
+every 30 seconds:
+    if {event::aktywny} is "wakacyjny":
+        set time of world "world" to 6000
+        set weather in world "world" to clear
+    else if {event::aktywny} is "halloween":
+        set time of world "world" to 18000
+    else if {event::aktywny} is "swiateczny":
+        set weather in world "world" to rain
+
+on join:
+    if {event::aktywny} is "halloween":
+        equip player with carved pumpkin
+        send "&6Happy Halloween! Zombie mogą wypuścić cukierki." to player
+    else if {event::aktywny} is "wakacyjny":
+        apply speed 1 to player for 60 seconds
+    else if {event::aktywny} is "swiateczny":
+        send "&cWesołych Świąt!" to player
+
+# --- DZIEN DZIECKA: fajerwerki na spawnie ---
+every 20 seconds:
+    if {event::aktywny} is "dzien dziecka":
+        if {spawn::loc} is set:
+            launch ball firework colored red and yellow at {spawn::loc} timed 1
+
+# --- HALLOWEEN: cukierki z zombie ---
+on death of zombie:
+    if {event::aktywny} is "halloween":
+        if random integer between 1 and 100 <= 30:
+            drop 1 sweet berries named "&6Cukierek" at victim
+
+# --- WIELKANOC: jajka na spawnie i wymiana na diamenty ---
+every 2 minutes:
+    if {event::aktywny} is "wielkanocny":
+        if {spawn::loc} is set:
+            loop 5 times:
+                set {_l} to {spawn::loc} ~ vector(random number between -15 and 15, 0, random number between -15 and 15)
+                drop 1 egg named "&eJajko wielkanocne" at {_l}
+            broadcast "&e[EVENT] Jajka pojawiły się wokół spawna!"
+
+command /jajka:
+    trigger:
+        if {event::aktywny} is not "wielkanocny":
+            send "&cWielkanocny event nie jest aktywny." to player
+            stop
+        if player has 10 egg named "&eJajko wielkanocne":
+            remove 10 egg named "&eJajko wielkanocne" from player
+            give player 1 diamond
+            send "&aWymieniłeś 10 jajek na diament!" to player
+        else:
+            send "&cPotrzebujesz 10 jajek wielkanocnych." to player
+
+# --- MIKOLAJKI: prezent raz na dzien ---
+command /prezent:
+    trigger:
+        if {event::aktywny} is not "mikolajkowy":
+            send "&cMikołajkowy event nie jest aktywny." to player
+            stop
+        if {prezent::%player's uuid%} is set:
+            send "&cJuż odebrałeś prezent, wróć jutro!" to player
+            stop
+        set {prezent::%player's uuid%} to now
+        give player 5 diamond named "&c&lPrezent od Mikołaja"
+        send "&aOtrzymałeś prezent od Mikołaja!" to player
+
+every day:
+    delete {prezent::*}
+
+# --- EVENT SZKOLNY: quiz na czacie ---
+every 5 minutes:
+    if {event::aktywny} is "szkolny":
+        set {_n1} to random integer between 2 and 12
+        set {_n2} to random integer between 2 and 12
+        set {quiz::odp} to "%{_n1} * {_n2}%"
+        broadcast "&9[LEKCJA] &fIle to jest &e%{_n1}% × %{_n2}%&f? Pierwszy z dobrą odpowiedzią wygrywa!"
+
+on chat:
+    if {quiz::odp} is set:
+        if message is {quiz::odp}:
+            cancel event
+            delete {quiz::odp}
+            broadcast "&9[LEKCJA] &a%player% odpowiedział pierwszy!"
+            give player 3 diamond

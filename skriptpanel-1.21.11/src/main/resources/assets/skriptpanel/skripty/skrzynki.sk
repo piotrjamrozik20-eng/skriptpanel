@@ -1,0 +1,34 @@
+# skrzynki.sk - skrzynka z nagrodami otwierana kluczem (klucz.sk)
+# Patrz na skrzynke i wpisz /setskrzynka
+
+command /setskrzynka:
+    permission: op
+    trigger:
+        set {skrzynka::loc} to location of target block of player
+        send "&aSkrzynka z nagrodami ustawiona." to player
+
+on right click on chest:
+    if {skrzynka::loc} is set:
+        if location of event-block is {skrzynka::loc}:
+            cancel event
+            if name of player's tool is "&6&l✦ KLUCZ ✦":
+                remove 1 of player's tool from player's inventory
+                set {_r} to random integer between 1 and 100
+                if {_r} <= 40:
+                    give player 16 iron ingot
+                    send "&7Wygrałeś: 16 sztabek żelaza" to player
+                else if {_r} <= 70:
+                    give player 8 gold ingot
+                    send "&6Wygrałeś: 8 sztabek złota" to player
+                else if {_r} <= 90:
+                    give player 5 diamond
+                    send "&bWygrałeś: 5 diamentów!" to player
+                else if {_r} <= 98:
+                    give player 1 enchanted golden apple
+                    send "&dWygrałeś: zaklęte złote jabłko!" to player
+                else:
+                    give player 1 netherite ingot
+                    send "&5&lJACKPOT: sztabka netherytu!" to player
+                play sound "entity.player.levelup" to player
+            else:
+                send "&cPotrzebujesz klucza, żeby otworzyć skrzynkę." to player

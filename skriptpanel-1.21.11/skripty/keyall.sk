@@ -1,0 +1,51 @@
+# Wymaga skryptu spawn-skrzynki.sk z funkcja klucz() (wersja z ostatniej poprawki wygladu kluczy).
+# Plik: plugins/Skript/scripts/keyall.sk
+
+function keyall(n: integer):
+    loop all players:
+        give klucz({_n}) to loop-player
+        send "&6&l[KEYALL] &eOtrzymałeś &f%{_n}% &eklucz(y) do skrzynki!" to loop-player
+        play sound "entity.player.levelup" to loop-player
+    broadcast "&6&l[KEYALL] &eKażdy gracz online dostał &f%{_n}% &eklucz(y)!"
+
+# /keyall give [ilość]  - klucze dla wszystkich teraz
+# /keyall auto <minuty> - automatyczny keyall co X minut
+# /keyall off           - wyłącza automat
+# /keyall status        - czas do następnego
+command /keyall [<text>] [<integer>]:
+    permission: op
+    trigger:
+        if arg-1 is "give":
+            keyall(arg-2 ? 1)
+        else if arg-1 is "auto":
+            if arg-2 is not set:
+                send "&cUżycie: /keyall auto <minuty>" to player
+                stop
+            if arg-2 < 1:
+                send "&cMinimum to 1 minuta." to player
+                stop
+            set {keyall::co} to arg-2
+            set {keyall::licznik} to arg-2 * 60
+            send "&aKeyall włączony: klucz dla wszystkich co &f%arg-2% &amin." to player
+        else if arg-1 is "off":
+            delete {keyall::co}
+            delete {keyall::licznik}
+            send "&cKeyall automatyczny wyłączony." to player
+        else if arg-1 is "status":
+            if {keyall::co} is not set:
+                send "&7Keyall automatyczny jest wyłączony." to player
+            else:
+                send "&eNastępny keyall za &f%{keyall::licznik}% &es (co %{keyall::co}% min)." to player
+        else:
+            send "&cUżycie: /keyall give [ilość] | auto <minuty> | off | status" to player
+
+every second:
+    {keyall::co} is set
+    remove 1 from {keyall::licznik}
+    if {keyall::licznik} <= 0:
+        keyall(1)
+        set {keyall::licznik} to {keyall::co} * 60
+    else if {keyall::licznik} is 60:
+        broadcast "&6&l[KEYALL] &eKeyall za &f1 minutę&e!"
+    else if {keyall::licznik} is 10:
+        broadcast "&6&l[KEYALL] &eKeyall za &f10 sekund&e!"

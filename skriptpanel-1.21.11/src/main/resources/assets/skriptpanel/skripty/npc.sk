@@ -1,0 +1,61 @@
+# npc.sk - proste NPC (villager bez AI). Klik w NPC wykonuje przypisana komende.
+# /npc create <komenda> <nazwa>  (komenda bez ukosnika, np. sklep)
+# /npc remove (patrz na NPC) | /npc list | /npc tp
+
+command /npc <text> [<text>] [<text>]:
+    permission: op
+    trigger:
+        if arg-1 is "create":
+            if arg-2 is not set:
+                send "&cUżycie: /npc create <komenda> <nazwa>" to player
+                stop
+            spawn a villager at location of player
+            set {_n} to last spawned entity
+            set ai of {_n} to false
+            make {_n} invulnerable
+            make {_n} silent
+            set custom name of {_n} to colored arg-3 ? "&eNPC"
+            set custom name visibility of {_n} to true
+            set {npc::%uuid of {_n}%::cmd} to arg-2
+            add uuid of {_n} to {npc::lista::*}
+            send "&aStworzono NPC, który wykonuje: &f/%arg-2%" to player
+        else if arg-1 is "remove":
+            set {_e} to target entity of player
+            if {npc::%uuid of {_e}%::cmd} is not set:
+                send "&cPatrz na NPC, którego chcesz usunąć." to player
+                stop
+            delete {npc::%uuid of {_e}%::cmd}
+            remove uuid of {_e} from {npc::lista::*}
+            delete {_e}
+            send "&aNPC usunięty." to player
+        else if arg-1 is "list":
+            send "&eLiczba NPC: &f%size of {npc::lista::*}%" to player
+            loop {npc::lista::*}:
+                send "&7- &f/%{npc::%loop-value%::cmd}%" to player
+        else if arg-1 is "tp":
+            set {_e} to nearest villager at player
+            if {npc::%uuid of {_e}%::cmd} is not set:
+                send "&cBrak NPC w pobliżu." to player
+                stop
+            teleport {_e} to location of player
+            send "&aNPC przeniesiony." to player
+        else:
+            send "&cUżycie: /npc create <komenda> <nazwa> | remove | list | tp" to player
+
+on right click on villager:
+    {npc::%uuid of event-entity%::cmd} is set
+    cancel event
+    if {npc::cd::%player's uuid%} is set:
+        stop
+    set {npc::cd::%player's uuid%} to true
+    make player execute command "%{npc::%uuid of event-entity%::cmd}%"
+    wait 10 ticks
+    delete {npc::cd::%player's uuid%}
+
+on damage of villager:
+    {npc::%uuid of victim%::cmd} is set
+    cancel event
+
+on death of villager:
+    {npc::%uuid of victim%::cmd} is set
+    clear drops

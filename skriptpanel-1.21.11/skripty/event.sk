@@ -1,0 +1,87 @@
+# event.sk - przedmioty eventowe (po jednym na event) + komenda /eventitem
+# Rozpoznawanie po nazwie przedmiotu: zmieniasz nazwe w eventItem() i w warunkach nizej
+
+function eventItem(n: text) :: itemtype:
+    if {_n} is "swiateczny":
+        set {_i} to diamond sword named "&c&lLaska Cukrowa" with lore "&7Event: Świąteczny||&eSpowalnia trafionego wroga"
+        enchant {_i} with sharpness 3
+    else if {_n} is "mikolajkowy":
+        set {_i} to leather helmet named "&4&lCzapka Mikołaja" with lore "&7Event: Mikołajkowy||&eRegeneracja podczas noszenia"
+    else if {_n} is "wakacyjny":
+        set {_i} to leather boots named "&b&lWakacyjne Klapki" with lore "&7Event: Wakacyjny||&eSzybkość podczas noszenia"
+    else if {_n} is "dzien dziecka":
+        set {_i} to firework rocket named "&d&lPetarda Radości" with lore "&7Event: Dzień Dziecka||&ePrawy klik: fajerwerk nad tobą"
+    else if {_n} is "halloween":
+        set {_i} to carved pumpkin named "&6&lMaska Dyni" with lore "&7Event: Halloween||&eWidzenie w ciemności podczas noszenia"
+    else if {_n} is "wielkanocny":
+        set {_i} to egg named "&e&lJajko Niespodzianka" with lore "&7Event: Wielkanocny||&ePrawy klik: losowa nagroda"
+    else if {_n} is "szkolny":
+        set {_i} to book named "&9&lZeszyt Prymusa" with lore "&7Event: Szkolny||&ePrawy klik: 5 poziomów XP"
+    else:
+        return none
+    return {_i}
+
+command /eventitem <text> [<player>]:
+    permission: op
+    trigger:
+        set {_i} to eventItem(arg-1)
+        if {_i} is not set:
+            send "&cNazwy: swiateczny, mikolajkowy, wakacyjny, dzien dziecka, halloween, wielkanocny, szkolny" to player
+            stop
+        set {_t} to arg-2 ? player
+        give {_i} to {_t}
+        send "&aDano przedmiot eventu &f%arg-1% &agraczowi %{_t}%." to player
+
+# --- SWIATECZNY: Laska Cukrowa ---
+on damage of player:
+    attacker is a player
+    name of attacker's tool is "&c&lLaska Cukrowa"
+    apply slowness 2 to victim for 3 seconds
+
+# --- MIKOLAJKOWY / WAKACYJNY / HALLOWEEN: efekty pasywne ---
+every 3 seconds:
+    loop all players:
+        if name of loop-player's helmet is "&4&lCzapka Mikołaja":
+            apply regeneration 1 to loop-player for 5 seconds
+        if name of loop-player's boots is "&b&lWakacyjne Klapki":
+            apply speed 1 to loop-player for 5 seconds
+        if name of loop-player's helmet is "&6&lMaska Dyni":
+            apply night vision 1 to loop-player for 15 seconds
+
+# --- DZIEN DZIECKA: Petarda Radosci ---
+on right click:
+    name of player's tool is "&d&lPetarda Radości"
+    cancel event
+    if {petarda::cd::%player's uuid%} is set:
+        send "&cPoczekaj chwilę." to player
+        stop
+    set {petarda::cd::%player's uuid%} to true
+    launch ball firework colored red and yellow at location 3 meters above player timed 1
+    play sound "entity.firework_rocket.launch" to player
+    wait 5 seconds
+    delete {petarda::cd::%player's uuid%}
+
+# --- WIELKANOC: Jajko Niespodzianka ---
+on right click:
+    name of player's tool is "&e&lJajko Niespodzianka"
+    cancel event
+    remove 1 of player's tool from player's inventory
+    set {_r} to random integer between 1 and 100
+    if {_r} <= 50:
+        give player 8 cooked chicken
+        send "&eWylosowałeś: 8 pieczonych kurczaków" to player
+    else if {_r} <= 85:
+        give player 3 gold ingot
+        send "&6Wylosowałeś: 3 sztabki złota" to player
+    else:
+        give player 2 diamond
+        send "&bWylosowałeś: 2 diamenty!" to player
+    play sound "entity.chicken.egg" to player
+
+# --- SZKOLNY: Zeszyt Prymusa ---
+on right click:
+    name of player's tool is "&9&lZeszyt Prymusa"
+    cancel event
+    remove 1 of player's tool from player's inventory
+    add 5 levels to player's level
+    send "&9Nauczyłeś się czegoś nowego! &a+5 poziomów XP" to player

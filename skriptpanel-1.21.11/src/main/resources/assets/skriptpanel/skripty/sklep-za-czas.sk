@@ -1,0 +1,85 @@
+# sklep-za-czas.sk - sklep, w ktorym platnoscia jest czas gry (1 minuta online = 1 punkt)
+# Ceny i przedmioty zmieniasz w otworzSklep() oraz w bloku "on inventory click" (numery slotow musza sie zgadzac)
+
+function czasGracza(p: player) :: number:
+    if {czas::%{_p}'s uuid%} is not set:
+        return 0
+    return {czas::%{_p}'s uuid%}
+
+every minute:
+    loop all players:
+        add 1 to {czas::%loop-player's uuid%}
+
+function kup(p: player, cena: integer, i: itemtype, n: text):
+    if czasGracza({_p}) < {_cena}:
+        send "&cPotrzebujesz &e%{_cena}% min &cczasu, a masz &e%czasGracza({_p})% min&c." to {_p}
+        play sound "entity.villager.no" to {_p}
+        stop
+    remove {_cena} from {czas::%{_p}'s uuid%}
+    give {_i} to {_p}
+    send "&aKupiłeś &f%{_n}% &aza &e%{_cena}% min&a. Zostało: &e%czasGracza({_p})% min&a." to {_p}
+    play sound "entity.player.levelup" to {_p}
+
+function otworzSklep(p: player):
+    set {_inv} to chest inventory with 3 rows named "&8Sklep za czas"
+    set slot 10 of {_inv} to 5 diamond named "&b5 diamentów" with lore "&7Cena: &e30 min|&7Kliknij, aby kupić"
+    set slot 11 of {_inv} to 3 golden apple named "&63 złote jabłka" with lore "&7Cena: &e20 min|&7Kliknij, aby kupić"
+    set slot 12 of {_inv} to 16 experience bottle named "&a16 butelek XP" with lore "&7Cena: &e15 min|&7Kliknij, aby kupić"
+    set slot 13 of {_inv} to 1 netherite ingot named "&5Sztabka netherytu" with lore "&7Cena: &e120 min|&7Kliknij, aby kupić"
+    set slot 14 of {_inv} to 64 cooked beef named "&c64 steki" with lore "&7Cena: &e10 min|&7Kliknij, aby kupić"
+    set slot 15 of {_inv} to 1 totem of undying named "&eTotem nieśmiertelności" with lore "&7Cena: &e90 min|&7Kliknij, aby kupić"
+    set slot 16 of {_inv} to 1 elytra named "&dElytra" with lore "&7Cena: &e300 min|&7Kliknij, aby kupić"
+    set slot 22 of {_inv} to clock named "&eTwój czas: %czasGracza({_p})% min" with lore "&7Czas zdobywasz grając na serwerze."
+    open {_inv} to {_p}
+    set {sklep::otwarty::%{_p}'s uuid%} to true
+
+command /sklep:
+    trigger:
+        otworzSklep(player)
+
+on inventory click:
+    {sklep::otwarty::%player's uuid%} is set
+    cancel event
+    set {_s} to index of event-slot
+    if {_s} is 10:
+        kup(player, 30, 5 diamond, "5 diamentów")
+    else if {_s} is 11:
+        kup(player, 20, 3 golden apple, "3 złote jabłka")
+    else if {_s} is 12:
+        kup(player, 15, 16 experience bottle, "16 butelek XP")
+    else if {_s} is 13:
+        kup(player, 120, 1 netherite ingot, "sztabka netherytu")
+    else if {_s} is 14:
+        kup(player, 10, 64 cooked beef, "64 steki")
+    else if {_s} is 15:
+        kup(player, 90, 1 totem of undying, "totem nieśmiertelności")
+    else if {_s} is 16:
+        kup(player, 300, 1 elytra, "elytra")
+    else:
+        stop
+    set slot 22 of player's current inventory to clock named "&eTwój czas: %czasGracza(player)% min" with lore "&7Czas zdobywasz grając na serwerze."
+
+on inventory close:
+    delete {sklep::otwarty::%player's uuid%}
+
+command /czas [<offlineplayer>]:
+    trigger:
+        if arg-1 is not set:
+            send "&eTwój czas: &f%czasGracza(player)% min" to player
+        else:
+            set {_t} to {czas::%arg-1's uuid%}
+            if {_t} is not set:
+                set {_t} to 0
+            send "&eCzas gracza %arg-1%: &f%{_t}% min" to player
+
+command /dajczas <offlineplayer> <integer>:
+    permission: op
+    trigger:
+        add arg-2 to {czas::%arg-1's uuid%}
+        send "&aDodano %arg-2% min graczowi %arg-1%." to player
+
+command /usunczas <offlineplayer> <integer>:
+    permission: op
+    trigger:
+        remove arg-2 from {czas::%arg-1's uuid%}
+        send "&aOdjęto %arg-2% min graczowi %arg-1%." to player

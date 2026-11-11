@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "skriptpanel",
+  "version": "${version}",
+  "name": "Skript Panel",
+  "description": "Panel GUI z komendami do skryptow serwera. Klawisz K otwiera menu.",
+  "authors": ["Ty"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["pl.skriptpanel.SkriptPanelClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

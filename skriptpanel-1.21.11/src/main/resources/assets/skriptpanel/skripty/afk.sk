@@ -1,0 +1,133 @@
+# afk.sk - strefa AFK z nagroda w minutach czasu do sklepu (sklep-za-czas.sk)
+# /setafk pos1 (rog), /setafk pos2 (przeciwlegly rog), /setafk spawn (miejsce teleportu)
+# Wejscie: /afk, wyjscie: /spawn
+
+options:
+    nagroda_co: 5
+    nagroda_czas: 5
+
+function wAfk(l: location) :: boolean:
+    if {afk::p1} is not set:
+        return false
+    if {afk::p2} is not set:
+        return false
+    if world of {_l} is not world of {afk::p1}:
+        return false
+    set {_x1} to x-coordinate of {afk::p1}
+    set {_x2} to x-coordinate of {afk::p2}
+    set {_y1} to y-coordinate of {afk::p1}
+    set {_y2} to y-coordinate of {afk::p2}
+    set {_z1} to z-coordinate of {afk::p1}
+    set {_z2} to z-coordinate of {afk::p2}
+    set {_minx} to {_x1}
+    set {_maxx} to {_x2}
+    if {_x2} < {_x1}:
+        set {_minx} to {_x2}
+        set {_maxx} to {_x1}
+    set {_miny} to {_y1}
+    set {_maxy} to {_y2}
+    if {_y2} < {_y1}:
+        set {_miny} to {_y2}
+        set {_maxy} to {_y1}
+    set {_minz} to {_z1}
+    set {_maxz} to {_z2}
+    if {_z2} < {_z1}:
+        set {_minz} to {_z2}
+        set {_maxz} to {_z1}
+    set {_lx} to x-coordinate of {_l}
+    set {_ly} to y-coordinate of {_l}
+    set {_lz} to z-coordinate of {_l}
+    if {_lx} < {_minx}:
+        return false
+    if {_lx} > {_maxx} + 1:
+        return false
+    if {_ly} < {_miny}:
+        return false
+    if {_ly} > {_maxy} + 1:
+        return false
+    if {_lz} < {_minz}:
+        return false
+    if {_lz} > {_maxz} + 1:
+        return false
+    return true
+
+command /setafk <text>:
+    permission: op
+    trigger:
+        if arg-1 is "pos1":
+            set {afk::p1} to location of player
+            send "&aRóg 1 strefy AFK ustawiony." to player
+        else if arg-1 is "pos2":
+            set {afk::p2} to location of player
+            send "&aRóg 2 strefy AFK ustawiony." to player
+        else if arg-1 is "spawn":
+            set {afk::spawn} to location of player
+            send "&aMiejsce teleportacji do AFK ustawione." to player
+        else:
+            send "&cUżycie: /setafk pos1 | pos2 | spawn" to player
+
+command /afk:
+    trigger:
+        if {afk::spawn} is not set:
+            send "&cStrefa AFK nie jest ustawiona." to player
+            stop
+        if {walka::%player's uuid%} is set:
+            send "&cNie możesz iść na AFK podczas walki!" to player
+            stop
+        if wAfk(location of player) is true:
+            send "&cJuż jesteś w strefie AFK." to player
+            stop
+        send "&eTeleportacja na AFK za 3 sekundy, nie ruszaj się..." to player
+        set {_start} to location of player
+        wait 3 seconds
+        if distance between player and {_start} > 1:
+            send "&cTeleportacja przerwana, ruszyłeś się." to player
+            stop
+        if {walka::%player's uuid%} is set:
+            send "&cTeleportacja przerwana, jesteś w walce!" to player
+            stop
+        teleport player to {afk::spawn}
+        send "&aJesteś w strefie AFK. Co {@nagroda_co} min dostajesz &e{@nagroda_czas} min &aczasu do sklepu. Wyjście: &f/spawn" to player
+
+every second:
+    loop all players:
+        set {_u} to loop-player's uuid
+        if wAfk(location of loop-player) is true:
+            add 1 to {afk::licznik::%{_u}%}
+            if {afk::licznik::%{_u}%} >= {@nagroda_co} * 60:
+                set {afk::licznik::%{_u}%} to 0
+                add {@nagroda_czas} to {czas::%{_u}%}
+                send "&a&l[AFK] &aOtrzymałeś &e{@nagroda_czas} min &aczasu do sklepu!" to loop-player
+                play sound "entity.experience_orb.pickup" to loop-player
+            else:
+                set {_zostalo} to {@nagroda_co} * 60 - {afk::licznik::%{_u}%}
+                send action bar "&7AFK &8| &fNagroda za &e%{_zostalo}%s" to loop-player
+        else:
+            delete {afk::licznik::%{_u}%}
+
+on damage of player:
+    wAfk(location of victim) is true
+    cancel event
+
+on food level change:
+    wAfk(location of player) is true
+    cancel event
+
+on break:
+    wAfk(location of event-block) is true
+    player doesn't have permission "op"
+    cancel event
+
+on place:
+    wAfk(location of event-block) is true
+    player doesn't have permission "op"
+    cancel event
+
+on teleport:
+    teleport cause is ender pearl
+    wAfk(to location of event) is true
+    cancel event
+    send "&cPerły są zablokowane w strefie AFK." to player
+
+on quit:
+    delete {afk::licznik::%player's uuid%}
